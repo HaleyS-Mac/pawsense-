@@ -128,6 +128,21 @@ canvas { display: none; }
 .retry-btn { margin: 0 1.25rem 1.25rem; padding: 0.7rem; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 0.73rem; cursor: pointer; transition: all 0.2s; width: calc(100% - 2.5rem); }
 .retry-btn:hover { border-color: var(--text); color: var(--text); }
 
+/* VOICE SECTION */
+.voice-section { background: rgba(232,149,46,0.05); border: 1px solid rgba(232,149,46,0.15); border-radius: 10px; padding: 1rem; }
+.voice-header { font-size: 0.82rem; font-weight: 600; margin-bottom: 0.2rem; }
+.voice-sub { font-size: 0.67rem; color: var(--muted); margin-bottom: 0.85rem; line-height: 1.5; }
+.voice-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.voice-row { display: flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.75rem; }
+.voice-row-left { display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 0; }
+.voice-emoji { font-size: 1rem; flex-shrink: 0; }
+.voice-name { font-size: 0.73rem; font-weight: 600; flex-shrink: 0; }
+.voice-status { font-size: 0.62rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-upload-btn { background: var(--amber); color: var(--bg); border: none; border-radius: 6px; padding: 0.3rem 0.6rem; font-family: 'Syne', sans-serif; font-size: 0.65rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.voice-play-btn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); width: 28px; height: 28px; cursor: pointer; font-size: 0.75rem; flex-shrink: 0; transition: all 0.2s; }
+.voice-play-btn:hover:not(:disabled) { border-color: var(--success); color: var(--success); }
+.voice-play-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
 /* FOOTER */
 footer { position: relative; z-index: 1; border-top: 1px solid var(--border); padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.7rem; color: var(--muted); }
 .footer-logo { font-family: 'Playfair Display', serif; font-size: 0.95rem; font-weight: 700; }
@@ -227,6 +242,55 @@ footer { position: relative; z-index: 1; border-top: 1px solid var(--border); pa
         <div>
           <label class="field-label">Dog's Name</label>
           <input type="text" class="field-input" id="dogName" placeholder="e.g. Buddy" value="Buddy">
+        </div>
+
+        <!-- Voice recordings -->
+        <div class="voice-section">
+          <div class="voice-header" onclick="toggleVoice()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+            <span>🎙️ Voice Messages</span>
+            <span id="voiceToggleIcon" style="font-size:0.75rem;color:var(--muted);">▼ Show</span>
+          </div>
+          <div id="voiceBody" style="display:none;margin-top:0.75rem;">
+            <div class="voice-sub">Upload a recording for each emotion — plays automatically when detected</div>
+            <div class="voice-list">
+              <div class="voice-row" data-emotion="happy">
+                <div class="voice-row-left">
+                  <span class="voice-emoji">😄</span>
+                  <span class="voice-name">Happy</span>
+                  <span class="voice-status" id="vstatus-happy">No file</span>
+                </div>
+                <label class="voice-upload-btn">📂 Upload<input type="file" accept="audio/*" onchange="loadVoice('happy',this)" hidden></label>
+                <button class="voice-play-btn" onclick="testVoice('happy')" disabled id="vplay-happy">▶</button>
+              </div>
+              <div class="voice-row" data-emotion="sad">
+                <div class="voice-row-left">
+                  <span class="voice-emoji">😢</span>
+                  <span class="voice-name">Sad / Lonely</span>
+                  <span class="voice-status" id="vstatus-sad">No file</span>
+                </div>
+                <label class="voice-upload-btn">📂 Upload<input type="file" accept="audio/*" onchange="loadVoice('sad',this)" hidden></label>
+                <button class="voice-play-btn" onclick="testVoice('sad')" disabled id="vplay-sad">▶</button>
+              </div>
+              <div class="voice-row" data-emotion="scared">
+                <div class="voice-row-left">
+                  <span class="voice-emoji">😰</span>
+                  <span class="voice-name">Scared / Anxious</span>
+                  <span class="voice-status" id="vstatus-scared">No file</span>
+                </div>
+                <label class="voice-upload-btn">📂 Upload<input type="file" accept="audio/*" onchange="loadVoice('scared',this)" hidden></label>
+                <button class="voice-play-btn" onclick="testVoice('scared')" disabled id="vplay-scared">▶</button>
+              </div>
+              <div class="voice-row" data-emotion="angry">
+                <div class="voice-row-left">
+                  <span class="voice-emoji">😡</span>
+                  <span class="voice-name">Angry / Alert</span>
+                  <span class="voice-status" id="vstatus-angry">No file</span>
+                </div>
+                <label class="voice-upload-btn">📂 Upload<input type="file" accept="audio/*" onchange="loadVoice('angry',this)" hidden></label>
+                <button class="voice-play-btn" onclick="testVoice('angry')" disabled id="vplay-angry">▶</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Analyse button (upload mode only) -->
@@ -549,6 +613,42 @@ function displayResults(text) {
   document.getElementById('loadingState').style.display = 'none';
   document.getElementById('resultsContent').style.display = 'flex';
   if (currentMode === 'upload') document.getElementById('analyseBtn').disabled = false;
+  autoPlayVoice(emotion);
+}
+
+// ── VOICE MESSAGES ────────────────────────────────────────────────────
+function toggleVoice() {
+  const body = document.getElementById('voiceBody');
+  const icon = document.getElementById('voiceToggleIcon');
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? 'block' : 'none';
+  icon.textContent = isHidden ? '▲ Hide' : '▼ Show';
+}
+const voiceUrls = {};
+
+function loadVoice(emotion, input) {
+  const file = input.files[0];
+  if (!file) return;
+  voiceUrls[emotion] = URL.createObjectURL(file);
+  document.getElementById('vstatus-' + emotion).textContent = '✅ ' + file.name;
+  document.getElementById('vplay-' + emotion).disabled = false;
+}
+
+function testVoice(emotion) {
+  if (!voiceUrls[emotion]) return;
+  new Audio(voiceUrls[emotion]).play();
+}
+
+function getVoiceKey(emotion) {
+  const map = { happy:'happy', playful:'happy', calm:null, tired:null, anxious:'scared', lonely:'sad', alert:'angry' };
+  return map[emotion.toLowerCase()] ?? null;
+}
+
+function autoPlayVoice(emotion) {
+  const key = getVoiceKey(emotion);
+  if (key && voiceUrls[key]) {
+    setTimeout(() => new Audio(voiceUrls[key]).play(), 1000);
+  }
 }
 
 // ── API KEY ───────────────────────────────────────────────────────────
