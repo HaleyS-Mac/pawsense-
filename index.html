@@ -534,14 +534,12 @@ async function analyseOnce() {
     alert('Please upload a photo of your dog first!'); 
     return; 
   }
-  const key = localStorage.getItem('pawsense_key') || '';
-  if (!key) { promptForKey(); return; }
+  const key = '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';
   await analyseImage(window.imageBase64);
 }
 
 async function analyseImage(imageB64) {
-  const key = localStorage.getItem('pawsense_key') || '';
-  if (!key) { promptForKey(); return; }
+  const key = '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';
 
   const dogName = document.getElementById('dogName').value || 'my dog';
   document.getElementById('emptyState').style.display = 'none';
@@ -673,9 +671,6 @@ function promptForKey() {
   }
 }
 window.addEventListener('load', () => {
-  if (!localStorage.getItem('pawsense_key')) {
-    promptForKey();
-  }
   // Start with upload mode
   document.getElementById('liveMode').style.display = 'none';
   // Make sure voice body is hidden
