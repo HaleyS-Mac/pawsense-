@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PawSense — AI Dog Emotion Detector</title>
+<meta name="description" content="Upload a photo of your dog and AI will detect their emotion instantly.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0e0c0a;
+  --surface:  #171410;
+  --card:     #1e1a16;
+  --border:   rgba(255,255,255,0.07);
+  --amber:    #e8952e;
+  --amber-dim:#c47a20;
+  --text:     #f0ebe3;
+  --muted:    rgba(240,235,227,0.45);
+  --success:  #5a9e6f;
+  --danger:   #c0513a;
+  --radius:   12px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND TEXTURE ───────────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(232,149,46,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(232,149,46,0.05) 0%, transparent 60%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── NAV ──────────────────────────────────────────────────────────────── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  padding: 1.25rem 3rem;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(14,12,10,0.85);
+  backdrop-filter: blur(20px);
+}
+
+.nav-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem; font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.nav-logo span { color: var(--amber); font-style: italic; }
+
+.nav-badge {
+  background: var(--amber);
+  color: var(--bg);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+}
+
+/* ── HERO ─────────────────────────────────────────────────────────────── */
+.hero {
+  position: relative; z-index: 1;
+  text-align: center;
+  padding: 5rem 2rem 3rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: rgba(232,149,46,0.1);
+  border: 1px solid rgba(232,149,46,0.25);
+  border-radius: 20px;
+  padding: 0.35rem 1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 1.5rem;
+  animation: fadeUp 0.6s ease both;
+}
+
+.hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.25rem;
+  animation: fadeUp 0.6s 0.1s ease both;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--amber);
+}
+
+.hero p {
+  font-size: 1rem;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 480px;
+  margin: 0 auto 2.5rem;
+  animation: fadeUp 0.6s 0.2s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── API KEY SETUP ────────────────────────────────────────────────────── */
+.api-setup {
+  position: relative; z-index: 1;
+  max-width: 680px;
+  margin: 0 auto 2rem;
+  padding: 0 1.5rem;
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+
+.api-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.api-card.hidden { display: none; }
+
+.api-field { flex: 1; }
+.api-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+.api-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.85rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.api-input:focus { border-color: var(--amber); }
+.api-input::placeholder { color: var(--muted); }
+
+.api-save-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--amber);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.api-save-btn:hover { background: #f5a535; }
+
+.api-hint {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 0.75rem;
+  line-height: 1.6;
+}
+.api-hint a { color: var(--amber); text-decoration: none; }
+.api-hint a:hover { text-decoration: underline; }
+
+.api-saved {
+  display: none;
+  background: rgba(90,158,111,0.1);
+  border: 1px solid rgba(90,158,111,0.3);
+  border-radius: var(--radius);
+  padding: 0.85rem 1.25rem;
+  font-size: 0.78rem;
+  color: var(--success);
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+.api-saved button {
+  background: none; border: none;
+  color: var(--muted); font-size: 0.7rem;
+  cursor: pointer; font-family: 'Syne', sans-serif;
+  text-decoration: underline;
+}
+
+/* ── MAIN APP ─────────────────────────────────────────────────────────── */
+.app {
+  position: relative; z-index: 1;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1.5rem 5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  animation: fadeUp 0.6s 0.4s ease both;
+}
+
+/* ── UPLOAD PANEL ─────────────────────────────────────────────────────── */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.panel-header-icon {
+  width: 32px; height: 32px;
+  background: rgba(232,149,46,0.12);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+}
+.panel-title { font-size: 0.85rem; font-weight: 600; }
+.panel-subtitle { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+
+.panel-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* Upload zone */
+.drop-zone {
+  border: 2px dashed rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+  background: var(--surface);
+}
+.drop-zone:hover, .drop-zone.over {
+  border-color: var(--amber);
+  background: rgba(232,149,46,0.04);
+}
+.drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-icon {
+  width: 56px; height: 56px;
+  background: rgba(232,149,46,0.1);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+  margin: 0 auto 1rem;
+}
+.drop-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.35rem; }
+.drop-sub { font-size: 0.72rem; color: var(--muted); }
+
+/* Preview */
+.preview-box { display: none; position: relative; border-radius: 10px; overflow: hidden; }
+.preview-box img { width: 100%; display: block; max-height: 280px; object-fit: cover; }
+.preview-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+  display: flex; align-items: flex-end; padding: 1rem;
+}
+.change-btn {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.7rem; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+}
+.change-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* Dog name */
+.field-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+.field-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field-input:focus { border-color: var(--amber); }
+
+/* Analyse button */
+.analyse-btn {
+  width: 100%;
+  padding: 1rem;
+  background: var(--amber);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-style: italic;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+}
+.analyse-btn:hover:not(:disabled) {
+  background: #f5a535;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(232,149,46,0.3);
+}
+.analyse-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Tips */
+.tips-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+.tip {
+  display: flex; gap: 0.6rem; align-items: flex-start;
+  font-size: 0.73rem; color: var(--muted); line-height: 1.5;
+}
+.tip-icon { flex-shrink: 0; }
+
+/* ── RESULTS PANEL ────────────────────────────────────────────────────── */
+.results-panel { display: flex; flex-direction: column; }
+
+/* Empty */
+.empty-state {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 3rem 2rem;
+  gap: 1rem;
+  color: var(--muted);
+}
+.empty-paw { font-size: 3.5rem; opacity: 0.2; }
+.empty-title { font-size: 0.9rem; font-weight: 600; }
+.empty-sub { font-size: 0.75rem; max-width: 200px; line-height: 1.6; }
+
+/* Loading */
+.loading-state {
+  display: none; flex: 1;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 3rem 2rem; gap: 1.25rem; text-align: center;
+}
+.loading-ring {
+  width: 64px; height: 64px;
+  border: 3px solid var(--border);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-label { font-size: 0.85rem; font-weight: 600; }
+.loading-sub { font-size: 0.72rem; color: var(--muted); }
+
+/* Results content */
+.results-content { display: none; flex-direction: column; }
+
+.emotion-hero {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(232,149,46,0.06) 0%, transparent 100%);
+}
+.emotion-emoji-big { font-size: 4rem; display: block; margin-bottom: 0.75rem; }
+.emotion-name-big {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem; font-style: italic;
+  letter-spacing: -0.02em; margin-bottom: 0.5rem;
+}
+.confidence-pill {
+  display: inline-block;
+  background: rgba(232,149,46,0.15);
+  border: 1px solid rgba(232,149,46,0.3);
+  color: var(--amber);
+  font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  padding: 0.3rem 0.8rem; border-radius: 20px;
+}
+
+.alert-banner {
+  display: none;
+  background: rgba(192,81,58,0.12);
+  border-top: 1px solid rgba(192,81,58,0.3);
+  border-bottom: 1px solid rgba(192,81,58,0.3);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.75rem;
+  color: #e07060;
+  align-items: center; gap: 0.5rem;
+}
+
+.result-sections { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+.result-block {}
+.result-block-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+
+.signals-wrap { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.signal-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+.message-text {
+  font-size: 0.85rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.action-box {
+  background: rgba(232,149,46,0.08);
+  border: 1px solid rgba(232,149,46,0.2);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  font-size: 0.82rem; line-height: 1.6;
+}
+.action-icon {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: var(--amber);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem;
+}
+
+.retry-btn {
+  margin: 0 1.5rem 1.5rem;
+  padding: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-family: 'Syne', sans-serif;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: calc(100% - 3rem);
+}
+.retry-btn:hover { border-color: var(--text); color: var(--text); }
+
+/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */
+.how-section {
+  position: relative; z-index: 1;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1.5rem 5rem;
+}
+.section-eyebrow {
+  font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--amber); margin-bottom: 0.75rem;
+}
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem; font-weight: 700;
+  letter-spacing: -0.02em; margin-bottom: 2rem;
+}
+.steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.step-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  transition: border-color 0.2s;
+}
+.step-card:hover { border-color: rgba(232,149,46,0.3); }
+.step-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem; font-style: italic;
+  color: rgba(232,149,46,0.3);
+  margin-bottom: 0.75rem;
+}
+.step-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+.step-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
+.step-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.6; }
+
+/* ── FOOTER ───────────────────────────────────────────────────────────── */
+footer {
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--border);
+  padding: 2rem 3rem;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.72rem; color: var(--muted);
+}
+.footer-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem; font-weight: 700;
+}
+.footer-logo span { color: var(--amber); font-style: italic; }
+
+/* Demo button */
+.demo-btn {
+  width: 100%;
+  padding: 0.6rem;
+  background: transparent;
+  border: 1px dashed rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: var(--muted);
+  font-family: 'Syne', sans-serif;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.02em;
+}
+.demo-btn:hover { border-color: rgba(255,255,255,0.3); color: var(--text); }
+
+/* ── SHARE BUTTON ─────────────────────────────────────────────────────── */
+.share-btn {
+  margin: 0 1.5rem 0.75rem;
+  padding: 0.75rem;
+  background: rgba(232,149,46,0.1);
+  border: 1px solid rgba(232,149,46,0.3);
+  border-radius: 8px;
+  color: var(--amber);
+  font-family: 'Syne', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: calc(100% - 3rem);
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+}
+.share-btn:hover { background: rgba(232,149,46,0.18); border-color: var(--amber); }
+
+/* ── SHARE MODAL ──────────────────────────────────────────────────────── */
+.modal-backdrop {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  align-items: center; justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease;
+}
+.modal-backdrop.open { display: flex; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%; max-width: 480px;
+  overflow: hidden;
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { opacity:0; transform: translateY(24px); } to { opacity:1; transform: translateY(0); } }
+
+.modal-header {
+  padding: 1.4rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem; font-style: italic;
+}
+.modal-close {
+  background: none; border: none;
+  color: var(--muted); font-size: 1.3rem;
+  cursor: pointer; line-height: 1;
+  transition: color 0.15s;
+}
+.modal-close:hover { color: var(--text); }
+
+.modal-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+
+/* Result card preview */
+.result-card-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+}
+.rc-emoji { font-size: 2.5rem; display: block; margin-bottom: 0.4rem; }
+.rc-emotion {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem; font-style: italic; color: var(--amber);
+  margin-bottom: 0.3rem;
+}
+.rc-dog { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+.rc-signals { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center; margin-bottom: 0.75rem; }
+.rc-chip {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.65rem; color: var(--muted);
+}
+.rc-message { font-size: 0.75rem; color: var(--text); line-height: 1.65; }
+.rc-brand { font-size: 0.6rem; color: rgba(232,149,46,0.5); margin-top: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* Share action buttons */
+.share-actions { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.share-action-btn {
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  border-radius: 10px;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.82rem; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+.share-action-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
+.share-action-btn.primary {
+  background: var(--amber); color: var(--bg); border-color: var(--amber);
+}
+.share-action-btn.primary:hover { background: #f5a535; }
+.share-action-btn .btn-icon { font-size: 1.1rem; }
+.share-action-btn .btn-label { flex: 1; text-align: left; }
+.share-action-btn .btn-sub { font-size: 0.68rem; font-weight: 400; opacity: 0.65; }
+
+.copy-feedback {
+  display: none;
+  background: rgba(90,158,111,0.12);
+  border: 1px solid rgba(90,158,111,0.3);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.75rem; color: var(--success);
+  text-align: center;
+}
+
+/* ── VOICE RESPONSES SECTION ──────────────────────────────────────────── */
+.voice-section {
+  position: relative; z-index: 1;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1.5rem 3rem;
+}
+
+.voice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.voice-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color 0.2s;
+}
+.voice-card:hover { border-color: rgba(232,149,46,0.25); }
+.voice-card.has-recording { border-color: rgba(90,158,111,0.35); }
+.voice-card.is-recording { border-color: var(--danger); animation: pulse-border 1s infinite; }
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(192,81,58,0.5); }
+  50% { border-color: rgba(192,81,58,1); }
+}
+
+.voice-card-top {
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.voice-emotion-emoji { font-size: 1.8rem; }
+.voice-emotion-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem; font-style: italic;
+  flex: 1;
+}
+.voice-status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.voice-status-dot.recorded { background: var(--success); }
+.voice-status-dot.recording { background: var(--danger); animation: blink 0.6s infinite; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
+.voice-status-text {
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+.voice-status-text.recorded { color: var(--success); }
+.voice-status-text.recording { color: var(--danger); }
+
+.voice-btns { display: flex; gap: 0.5rem; }
+
+.voice-btn {
+  flex: 1;
+  padding: 0.5rem 0.6rem;
+  border-radius: 7px;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.7rem; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+.voice-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
+.voice-btn.record { border-color: rgba(192,81,58,0.4); color: #e07060; }
+.voice-btn.record:hover { background: rgba(192,81,58,0.1); border-color: var(--danger); }
+.voice-btn.record.stop { background: rgba(192,81,58,0.15); border-color: var(--danger); color: var(--danger); }
+.voice-btn.play { border-color: rgba(232,149,46,0.35); color: var(--amber); }
+.voice-btn.play:hover { background: rgba(232,149,46,0.08); }
+.voice-btn.delete { color: var(--muted); max-width: 36px; flex: 0 0 36px; }
+.voice-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Voice playback toast */
+.voice-toast {
+  position: fixed;
+  bottom: 2rem; left: 50%; transform: translateX(-50%);
+  z-index: 300;
+  background: var(--card);
+  border: 1px solid rgba(232,149,46,0.35);
+  border-radius: 40px;
+  padding: 0.75rem 1.5rem;
+  display: flex; align-items: center; gap: 0.75rem;
+  font-size: 0.8rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  animation: slideToast 0.3s ease;
+  white-space: nowrap;
+}
+.voice-toast.hidden { display: none !important; }
+@keyframes slideToast { from { opacity:0; transform: translateX(-50%) translateY(12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+
+.toast-bars {
+  display: flex; align-items: center; gap: 2px; height: 20px;
+}
+.toast-bar {
+  width: 3px; border-radius: 3px;
+  background: var(--amber);
+  animation: bar-wave 0.8s ease-in-out infinite;
+}
+.toast-bar:nth-child(1) { height: 6px; animation-delay: 0s; }
+.toast-bar:nth-child(2) { height: 14px; animation-delay: 0.1s; }
+.toast-bar:nth-child(3) { height: 20px; animation-delay: 0.2s; }
+.toast-bar:nth-child(4) { height: 14px; animation-delay: 0.3s; }
+.toast-bar:nth-child(5) { height: 6px; animation-delay: 0.4s; }
+@keyframes bar-wave {
+  0%,100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+.toast-countdown {
+  background: rgba(232,149,46,0.15);
+  border: 1px solid rgba(232,149,46,0.3);
+  border-radius: 20px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+  color: var(--amber);
+  font-weight: 600;
+}
+
+/* Voice export/import bar */
+.voice-toolbar {
+  display: flex; gap: 0.75rem; align-items: center;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+.voice-toolbar-btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.75rem; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.voice-toolbar-btn:hover { border-color: rgba(255,255,255,0.2); }
+.voice-toolbar-btn.primary { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+.voice-toolbar-btn.primary:hover { background: #f5a535; }
+.voice-toolbar-info { font-size: 0.68rem; color: var(--muted); }
+
+/* ── RESPONSIVE ───────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  nav { padding: 1rem 1.5rem; }
+  .hero { padding: 3rem 1.5rem 2rem; }
+  .app { grid-template-columns: 1fr; }
+  .steps-grid { grid-template-columns: 1fr 1fr; }
+  footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Paw<span>Sense</span></div>
+  <div class="nav-badge">Powered by Claude AI</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">🐾 AI-Powered Dog Emotion Detection</div>
+  <h1>Understand how your dog <em>really</em> feels</h1>
+  <p>Upload a photo and our AI will instantly analyse your dog's body language, posture, and expressions to detect their emotional state.</p>
+</section>
+
+<!-- API KEY SETUP -->
+<div class="api-setup">
+  <div class="api-card" id="apiCard">
+    <div class="api-field">
+      <label class="api-label">Your Anthropic API Key</label>
+      <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-...">
+      <div class="api-hint">
+        Get a free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key. Your key is stored only in your browser and never sent anywhere except Anthropic.
+      </div>
+    </div>
+    <button class="api-save-btn" onclick="saveKey()">Save Key</button>
+  </div>
+  <div class="api-saved" id="apiSaved">
+    <span>✅ API key saved — you're ready to analyse!</span>
+    <button onclick="clearKey()">Change key</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app">
+
+  <!-- Upload Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-header-icon">📷</div>
+      <div>
+        <div class="panel-title">Upload a Photo</div>
+        <div class="panel-subtitle">Clear, well-lit photos work best</div>
+      </div>
+    </div>
+    <div class="panel-body">
+
+      <div class="drop-zone" id="dropZone">
+        <input type="file" accept="image/*" id="fileInput" onchange="handleFile(event)">
+        <div class="drop-icon">📸</div>
+        <div class="drop-title">Drop your photo here</div>
+        <div class="drop-sub">or click to browse — JPG, PNG, HEIC</div>
+      </div>
+
+      <div class="preview-box" id="previewBox">
+        <img id="previewImg" src="" alt="Dog photo">
+        <div class="preview-overlay">
+          <button class="change-btn" onclick="resetPhoto()">Change photo</button>
+        </div>
+      </div>
+
+      <div>
+        <label class="field-label">Dog's Name</label>
+        <input type="text" class="field-input" id="dogName" placeholder="e.g. Buddy" value="Buddy">
+      </div>
+
+      <button class="analyse-btn" id="analyseBtn" onclick="analyse()" disabled>
+        Analyse Emotion 🐾
+      </button>
+
+      <button class="demo-btn" onclick="runDemo()">🧪 Load Demo Result</button>
+
+      <div class="tips-grid">
+        <div class="section-eyebrow" style="font-size:0.6rem">Tips for best results</div>
+        <div class="tip"><span class="tip-icon">🌟</span> Use a clear, well-lit photo</div>
+        <div class="tip"><span class="tip-icon">🐕</span> Full body visible works best</div>
+        <div class="tip"><span class="tip-icon">📸</span> Candid shots are more accurate than posed</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Results Panel -->
+  <div class="panel results-panel">
+    <div class="panel-header">
+      <div class="panel-header-icon">🧠</div>
+      <div>
+        <div class="panel-title">Emotion Analysis</div>
+        <div class="panel-subtitle">Powered by Claude AI</div>
+      </div>
+    </div>
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-paw">🐾</div>
+      <div class="empty-title">No photo yet</div>
+      <div class="empty-sub">Upload a photo of your dog to see their emotional state</div>
+    </div>
+
+    <div class="loading-state" id="loadingState">
+      <div class="loading-ring"></div>
+      <div class="loading-label">Analysing your dog...</div>
+      <div class="loading-sub">Claude is reading their body language</div>
+    </div>
+
+    <div class="results-content" id="resultsContent">
+      <div class="emotion-hero">
+        <span class="emotion-emoji-big" id="resEmoji">🐾</span>
+        <div class="emotion-name-big" id="resEmotion">—</div>
+        <span class="confidence-pill" id="resConfidence">—</span>
+      </div>
+
+      <div class="alert-banner" id="alertBanner">
+        ⚠️ Your dog may need some attention right now
+      </div>
+
+      <div class="result-sections">
+        <div class="result-block">
+          <div class="result-block-label">Visual Signals Detected</div>
+          <div class="signals-wrap" id="resSignals"></div>
+        </div>
+        <div class="result-block">
+          <div class="result-block-label">What This Means</div>
+          <div class="message-text" id="resMessage">—</div>
+        </div>
+        <div class="result-block">
+          <div class="result-block-label">Recommended Action</div>
+          <div class="action-box">
+            <div class="action-icon">✅</div>
+            <div id="resAction">—</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="share-btn" onclick="openShareModal()">↗ Share Results</button>
+      <button class="retry-btn" onclick="resetAll()">← Analyse another photo</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="how-section">
+  <div class="section-eyebrow">How it works</div>
+  <div class="section-title">From photo to emotion in seconds</div>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">01</div>
+      <div class="step-icon">📷</div>
+      <div class="step-name">Upload Photo</div>
+      <div class="step-desc">Take or upload any clear photo of your dog</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">02</div>
+      <div class="step-icon">🧠</div>
+      <div class="step-name">AI Analysis</div>
+      <div class="step-desc">Claude analyses posture, ears, tail, and facial expression</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">03</div>
+      <div class="step-icon">💬</div>
+      <div class="step-name">Get Report</div>
+      <div class="step-desc">Receive a detailed emotion report with key signals</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">04</div>
+      <div class="step-icon">❤️</div>
+      <div class="step-name">Take Action</div>
+      <div class="step-desc">Follow the AI's recommendations to care for your pup</div>
+    </div>
+  </div>
+</section>
+
+<!-- VOICE RESPONSES -->
+<section class="voice-section">
+  <div class="section-eyebrow">🎙️ Voice Responses</div>
+  <div class="section-title" style="font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.5rem;">Record your voice for each emotion</div>
+  <p style="font-size:0.82rem;color:var(--muted);line-height:1.7;max-width:560px;">Record a calming or encouraging message for each emotion. When PawSense detects that emotion, it will automatically play your voice to your dog after 5 seconds.</p>
+
+  <div class="voice-grid" id="voiceGrid"></div>
+
+  <div style="margin-top:1rem;">
+    <button class="voice-toolbar-btn" onclick="testMic()" id="micTestBtn">🎙️ Test Microphone</button>
+    <div id="micTestResult" style="margin-top:0.6rem;font-size:0.75rem;color:var(--muted);line-height:1.6;"></div>
+  </div>
+
+  <div class="voice-toolbar">
+    <button class="voice-toolbar-btn primary" onclick="exportRecordings()">⬇️ Save Recordings</button>
+    <button class="voice-toolbar-btn" onclick="document.getElementById('importInput').click()">⬆️ Load Recordings</button>
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="importRecordings(event)">
+    <span class="voice-toolbar-info">💡 Save your recordings as a file so they reload next time</span>
+  </div>
+</section>
+
+<!-- VOICE TOAST -->
+<div class="voice-toast hidden" id="voiceToast">
+  <div class="toast-bars">
+    <div class="toast-bar"></div><div class="toast-bar"></div><div class="toast-bar"></div>
+    <div class="toast-bar"></div><div class="toast-bar"></div>
+  </div>
+  <span id="toastText">Playing voice response...</span>
+  <span class="toast-countdown" id="toastCountdown" style="display:none;visibility:hidden"></span>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Paw<span>Sense</span></div>
+  <div>Built with Claude AI by Anthropic</div>
+</footer>
+
+<!-- SHARE MODAL -->
+<div class="modal-backdrop" id="shareModal" onclick="handleBackdropClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Share Results</div>
+      <button class="modal-close" onclick="closeShareModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Preview card -->
+      <div class="result-card-preview" id="shareCardPreview">
+        <span class="rc-emoji" id="scEmoji">🐾</span>
+        <div class="rc-emotion" id="scEmotion">—</div>
+        <div class="rc-dog" id="scDog">—</div>
+        <div class="rc-signals" id="scSignals"></div>
+        <div class="rc-message" id="scMessage">—</div>
+        <div class="rc-brand">PawSense · Powered by Claude AI</div>
+      </div>
+
+      <div class="share-actions">
+        <button class="share-action-btn primary" onclick="downloadCard()">
+          <span class="btn-icon">⬇️</span>
+          <span class="btn-label">Download as Image<span class="btn-sub"> · Save a PNG of the result card</span></span>
+        </button>
+        <button class="share-action-btn" onclick="copyText()">
+          <span class="btn-icon">📋</span>
+          <span class="btn-label">Copy to Clipboard<span class="btn-sub"> · Formatted text summary</span></span>
+        </button>
+        <button class="share-action-btn" id="nativeShareBtn" onclick="nativeShare()" style="display:none">
+          <span class="btn-icon">📤</span>
+          <span class="btn-label">Share via…<span class="btn-sub"> · Opens your device share sheet</span></span>
+        </button>
+      </div>
+
+      <div class="copy-feedback" id="copyFeedback">✅ Copied to clipboard!</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── VOICE RECORDING SYSTEM ─────────────────────────────────────────────
+
+const EMOTIONS = [
+  { key: 'happy',   label: 'Happy',   emoji: '😄' },
+  { key: 'calm',    label: 'Calm',    emoji: '😌' },
+  { key: 'anxious', label: 'Anxious', emoji: '😰' },
+  { key: 'lonely',  label: 'Lonely',  emoji: '😢' },
+  { key: 'playful', label: 'Playful', emoji: '🎉' },
+  { key: 'alert',   label: 'Alert',   emoji: '👀' },
+  { key: 'tired',   label: 'Tired',   emoji: '😴' },
+];
+
+// In-memory storage: { emotionKey: base64string }
+const voiceRecordings = {};
+let activeRecorder = null;
+let activeEmotion = null;
+let voiceCountdownTimer = null;
+let voicePlaybackTimer = null;
+
+function buildVoiceGrid() {
+  const grid = document.getElementById('voiceGrid');
+  grid.innerHTML = '';
+  EMOTIONS.forEach(em => {
+    const card = document.createElement('div');
+    card.className = 'voice-card';
+    card.id = `vcard-${em.key}`;
+    card.innerHTML = `
+      <div class="voice-card-top">
+        <span class="voice-emotion-emoji">${em.emoji}</span>
+        <span class="voice-emotion-name">${em.label}</span>
+        <span class="voice-status-dot" id="vdot-${em.key}"></span>
+      </div>
+      <div class="voice-status-text" id="vstatus-${em.key}">No recording yet</div>
+      <div class="voice-btns">
+        <button class="voice-btn record" id="vrecbtn-${em.key}" onclick="toggleRecord('${em.key}')">🎙️ Record</button>
+        <button class="voice-btn play" id="vplaybtn-${em.key}" onclick="playRecording('${em.key}')" disabled>▶ Play</button>
+        <button class="voice-btn delete" id="vdelbtn-${em.key}" onclick="deleteRecording('${em.key}')" title="Delete" disabled>🗑</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+async function toggleRecord(emotionKey) {
+  // If already recording this emotion — stop
+  if (activeEmotion === emotionKey && activeRecorder) {
+    activeRecorder.stop();
+    return;
+  }
+  // If recording a different emotion — stop first
+  if (activeRecorder) {
+    activeRecorder.stop();
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  // Check if MediaRecorder is supported
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showVoiceError('Your browser does not support audio recording. Try opening this file in Chrome or Edge, and make sure you\'re not opening it as a file:// URL — use a local server or drag it into your browser from a web server.');
+    return;
+  }
+  if (typeof MediaRecorder === 'undefined') {
+    showVoiceError('MediaRecorder is not supported in this browser. Please use Chrome, Edge, or Firefox.');
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    // Pick best supported MIME type
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', 'audio/mp4', '']
+      .find(m => m === '' || MediaRecorder.isTypeSupported(m));
+
+    const chunks = [];
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    activeRecorder = recorder;
+    activeEmotion = emotionKey;
+
+    setCardRecording(emotionKey, true);
+
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onerror = (e) => {
+      showVoiceError('Recording error: ' + (e.error?.message || 'unknown error'));
+      setCardRecording(emotionKey, false);
+      activeRecorder = null;
+      activeEmotion = null;
+    };
+    recorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      if (chunks.length === 0) {
+        showVoiceError('No audio was captured. Make sure your microphone is working and you allowed access.');
+        setCardRecording(emotionKey, false);
+        activeRecorder = null;
+        activeEmotion = null;
+        return;
+      }
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+      const reader = new FileReader();
+      reader.onload = ev => {
+        voiceRecordings[emotionKey] = ev.target.result;
+        setCardRecording(emotionKey, false);
+        setCardHasRecording(emotionKey, true);
+        activeRecorder = null;
+        activeEmotion = null;
+      };
+      reader.readAsDataURL(blob);
+    };
+
+    recorder.start(100); // collect data every 100ms
+  } catch (err) {
+    activeRecorder = null;
+    activeEmotion = null;
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      showVoiceError('Microphone access was denied. Click the 🔒 or 🎙️ icon in your browser\'s address bar and allow microphone access, then try again.');
+    } else if (err.name === 'NotFoundError') {
+      showVoiceError('No microphone found. Please connect a microphone and try again.');
+    } else if (err.name === 'NotSupportedError' || location.protocol === 'file:') {
+      showVoiceError('Recording is blocked when opening as a local file. To fix this: open Chrome, go to chrome://flags, search "Insecure origins", and add your file path — or use VS Code Live Server extension to serve the file.');
+    } else {
+      showVoiceError('Could not start recording: ' + err.message);
+    }
+  }
+}
+
+async function testMic() {
+  const out = document.getElementById('micTestResult');
+  out.style.color = 'var(--muted)';
+  out.textContent = 'Testing...';
+
+  const lines = [];
+  lines.push('Protocol: ' + location.protocol);
+  lines.push('MediaDevices available: ' + !!navigator.mediaDevices);
+  lines.push('getUserMedia available: ' + !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+  lines.push('MediaRecorder available: ' + (typeof MediaRecorder !== 'undefined'));
+  if (typeof MediaRecorder !== 'undefined') {
+    const types = ['audio/webm;codecs=opus','audio/webm','audio/ogg','audio/mp4'];
+    lines.push('Supported types: ' + types.filter(t => MediaRecorder.isTypeSupported(t)).join(', ') || 'none');
+  }
+
+  // Check permission state if available
+  if (navigator.permissions) {
+    try {
+      const perm = await navigator.permissions.query({ name: 'microphone' });
+      lines.push('Permission state: ' + perm.state);
+    } catch(e) {
+      lines.push('Permission query failed: ' + e.message);
+    }
+  }
+
+  // Actually try to get the mic
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const tracks = stream.getAudioTracks();
+    lines.push('✅ Mic access SUCCESS — track: ' + (tracks[0]?.label || 'unknown'));
+    stream.getTracks().forEach(t => t.stop());
+    out.style.color = 'var(--success)';
+  } catch(err) {
+    lines.push('❌ Mic access FAILED — ' + err.name + ': ' + err.message);
+    out.style.color = '#e07060';
+  }
+
+  out.innerHTML = lines.join('<br>');
+}
+
+function showVoiceError(msg) {
+  // Show error in a styled banner above the voice grid
+  let banner = document.getElementById('voiceErrorBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'voiceErrorBanner';
+    banner.style.cssText = 'background:rgba(192,81,58,0.12);border:1px solid rgba(192,81,58,0.4);border-radius:10px;padding:1rem 1.25rem;font-size:0.78rem;color:#e07060;line-height:1.65;margin-bottom:1rem;';
+    document.getElementById('voiceGrid').before(banner);
+  }
+  banner.innerHTML = '⚠️ ' + msg + ' <button onclick="this.parentElement.remove()" style="float:right;background:none;border:none;color:#e07060;cursor:pointer;font-size:1rem;">✕</button>';
+}
+
+function setCardRecording(emotionKey, isRecording) {
+  const card = document.getElementById(`vcard-${emotionKey}`);
+  const dot = document.getElementById(`vdot-${emotionKey}`);
+  const status = document.getElementById(`vstatus-${emotionKey}`);
+  const recBtn = document.getElementById(`vrecbtn-${emotionKey}`);
+
+  if (isRecording) {
+    card.classList.add('is-recording');
+    card.classList.remove('has-recording');
+    dot.className = 'voice-status-dot recording';
+    status.className = 'voice-status-text recording';
+    status.textContent = '🔴 Recording… tap to stop';
+    recBtn.className = 'voice-btn record stop';
+    recBtn.textContent = '⏹ Stop';
+  } else {
+    card.classList.remove('is-recording');
+    recBtn.className = 'voice-btn record';
+    recBtn.textContent = '🎙️ Re-record';
+  }
+}
+
+function setCardHasRecording(emotionKey, hasRec) {
+  const card = document.getElementById(`vcard-${emotionKey}`);
+  const dot = document.getElementById(`vdot-${emotionKey}`);
+  const status = document.getElementById(`vstatus-${emotionKey}`);
+  const playBtn = document.getElementById(`vplaybtn-${emotionKey}`);
+  const delBtn = document.getElementById(`vdelbtn-${emotionKey}`);
+
+  if (hasRec) {
+    card.classList.add('has-recording');
+    dot.className = 'voice-status-dot recorded';
+    status.className = 'voice-status-text recorded';
+    status.textContent = '✅ Recording saved';
+    playBtn.disabled = false;
+    delBtn.disabled = false;
+  } else {
+    card.classList.remove('has-recording');
+    dot.className = 'voice-status-dot';
+    status.className = 'voice-status-text';
+    status.textContent = 'No recording yet';
+    playBtn.disabled = true;
+    delBtn.disabled = true;
+  }
+}
+
+function playRecording(emotionKey) {
+  const src = voiceRecordings[emotionKey];
+  if (!src) return;
+  try {
+    const audio = new Audio();
+    audio.onerror = (e) => {
+      showVoiceError('Could not play recording. Error: ' + (audio.error?.message || 'unknown. Try re-recording.'));
+    };
+    audio.oncanplaythrough = () => {
+      audio.play().catch(err => {
+        showVoiceError('Playback blocked: ' + err.message + '. Click anywhere on the page first, then try again.');
+      });
+    };
+    showToastPlaying(emotionKey);
+    audio.onended = () => hideToast();
+    audio.src = src;
+    audio.load();
+  } catch(err) {
+    showVoiceError('Playback error: ' + err.message);
+  }
+}
+
+function deleteRecording(emotionKey) {
+  if (!confirm(`Delete the voice recording for "${emotionKey}"?`)) return;
+  delete voiceRecordings[emotionKey];
+  setCardHasRecording(emotionKey, false);
+  const recBtn = document.getElementById(`vrecbtn-${emotionKey}`);
+  recBtn.className = 'voice-btn record';
+  recBtn.textContent = '🎙️ Record';
+}
+
+// ── SCHEDULED PLAYBACK AFTER EMOTION DETECTION ─────────────────────────
+function scheduleVoicePlayback(emotionKey) {
+  // Cancel any previous countdown
+  if (voiceCountdownTimer) clearInterval(voiceCountdownTimer);
+  if (voicePlaybackTimer)  clearTimeout(voicePlaybackTimer);
+
+  const src = voiceRecordings[emotionKey];
+  if (!src) return; // No recording for this emotion
+
+  const dogName = document.getElementById('dogName').value || 'your dog';
+  const secondsLeft = 5;
+
+  const toast = document.getElementById('voiceToast');
+  const toastText = document.getElementById('toastText');
+  const countdown = document.getElementById('toastCountdown');
+
+  // Show countdown toast (invisible — silent countdown)
+  toast.classList.add('hidden');
+  countdown.style.display = 'none';
+  toast.querySelector('.toast-bars').style.display = 'none';
+
+  voicePlaybackTimer = setTimeout(() => {
+    // Switch to playing state
+    toast.querySelector('.toast-bars').style.display = 'flex';
+    countdown.style.display = 'none';
+    toastText.textContent = `Speaking to ${dogName}…`;
+
+    try {
+      const audio = new Audio();
+      audio.onerror = () => hideToast();
+      audio.oncanplaythrough = () => {
+        audio.play().catch(() => hideToast());
+      };
+      audio.onended = () => hideToast();
+      audio.src = src;
+      audio.load();
+    } catch(e) {
+      hideToast();
+    }
+  }, 5000);
+}
+
+function showToastPlaying(emotionKey) {
+  const em = EMOTIONS.find(e => e.key === emotionKey);
+  const toast = document.getElementById('voiceToast');
+  const toastText = document.getElementById('toastText');
+  document.getElementById('toastCountdown').style.display = 'none';
+  toast.querySelector('.toast-bars').style.display = 'flex';
+  toastText.textContent = `Playing ${em ? em.label : ''} voice response`;
+  toast.classList.remove('hidden');
+}
+
+function hideToast() {
+  document.getElementById('voiceToast').classList.add('hidden');
+}
+
+// ── EXPORT / IMPORT RECORDINGS ─────────────────────────────────────────
+function exportRecordings() {
+  const keys = Object.keys(voiceRecordings);
+  if (keys.length === 0) {
+    alert('No recordings to save yet! Record at least one emotion first.');
+    return;
+  }
+  const json = JSON.stringify(voiceRecordings);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pawsense-voice-recordings.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importRecordings(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let count = 0;
+      EMOTIONS.forEach(em => {
+        if (data[em.key]) {
+          voiceRecordings[em.key] = data[em.key];
+          setCardHasRecording(em.key, true);
+          const recBtn = document.getElementById(`vrecbtn-${em.key}`);
+          recBtn.textContent = '🎙️ Re-record';
+          count++;
+        }
+      });
+      alert(`✅ Loaded ${count} recording${count !== 1 ? 's' : ''} successfully!`);
+    } catch {
+      alert('Could not read that file. Make sure it\'s a PawSense recordings file.');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// Build the grid on page load
+window.addEventListener('load', () => {
+  buildVoiceGrid();
+  if (getKey()) showKeySaved();
+});
+
+
+const DEMO_RESULTS = [
+  `EMOTION: Happy
+CONFIDENCE: High
+SIGNALS: tail held high, relaxed ears, open mouth, loose body posture, bright eyes
+MESSAGE: Buddy is clearly having a wonderful time! Their relaxed, open body language and wagging tail tell you they're feeling safe, loved, and full of joy. This is a dog at their happiest.
+ACTION: Keep doing what you're doing — playtime, affection, and a good environment are clearly working for Buddy!`,
+
+  `EMOTION: Calm
+CONFIDENCE: High
+SIGNALS: soft eyes, relaxed mouth, neutral tail position, settled posture, slow breathing
+MESSAGE: Buddy looks perfectly content and at ease. Their soft, relaxed expression and settled body language are signs of a dog who feels completely secure in their environment.
+ACTION: This is the ideal resting state — no action needed. Maybe offer a gentle pet or a quiet cuddle to reinforce this peaceful moment.`,
+
+  `EMOTION: Playful
+CONFIDENCE: Medium
+SIGNALS: play bow stance, perked ears, bright alert eyes, paw raised, loose wagging tail
+MESSAGE: Buddy is in full play mode! That classic play bow and bouncy energy mean they're inviting you to join the fun. They've got zoomies incoming if you don't act fast!
+ACTION: Grab their favourite toy and engage in a play session — they're primed and ready for some interactive fun!`,
+
+  `EMOTION: Anxious
+CONFIDENCE: Medium
+SIGNALS: tucked tail, flattened ears, whale eye, tense jaw, lowered body posture
+MESSAGE: Buddy seems a little unsettled right now. The tucked tail and tense posture suggest something in their environment is making them uneasy — could be a noise, an unfamiliar situation, or overstimulation.
+ACTION: Give Buddy some space and a calm, quiet environment. Speak softly, avoid sudden movements, and consider what may have triggered this so you can reduce it next time.`,
+];
+
+function runDemo() {
+  const dogName = document.getElementById('dogName').value || 'Buddy';
+  const mock = DEMO_RESULTS[Math.floor(Math.random() * DEMO_RESULTS.length)];
+  const result = mock.replace(/Buddy/g, dogName);
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsContent').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'flex';
+
+  // Fake a short delay so it feels real
+  setTimeout(() => {
+    displayResults(result);
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('resultsContent').style.display = 'flex';
+  }, 1200);
+}
+
+// ── API KEY MANAGEMENT ─────────────────────────────────────────────────
+function saveKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    alert('That doesn\'t look right — your key should start with sk-ant-');
+    return;
+  }
+  localStorage.setItem('pawsense_key', key);
+  showKeySaved();
+}
+
+function showKeySaved() {
+  document.getElementById('apiCard').classList.add('hidden');
+  document.getElementById('apiSaved').style.display = 'flex';
+  updateAnalyseBtn();
+}
+
+function clearKey() {
+  localStorage.removeItem('pawsense_key');
+  document.getElementById('apiCard').classList.remove('hidden');
+  document.getElementById('apiSaved').style.display = 'none';
+  document.getElementById('apiKeyInput').value = '';
+  updateAnalyseBtn();
+}
+
+function getKey() { return localStorage.getItem('pawsense_key'); }
+
+function updateAnalyseBtn() {
+  const hasKey = !!getKey();
+  const hasPhoto = !!window.imageBase64;
+  document.getElementById('analyseBtn').disabled = !(hasKey && hasPhoto);
+}
+
+// Check on load is handled in the voice section load listener above
+
+
+// ── PHOTO HANDLING ─────────────────────────────────────────────────────
+window.imageBase64 = null;
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (file) loadImage(file);
+}
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    window.imageBase64 = e.target.result.split(',')[1];
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('dropZone').style.display = 'none';
+    document.getElementById('previewBox').style.display = 'block';
+    updateAnalyseBtn();
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetPhoto() {
+  window.imageBase64 = null;
+  document.getElementById('dropZone').style.display = 'block';
+  document.getElementById('previewBox').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  updateAnalyseBtn();
+}
+
+function resetAll() {
+  resetPhoto();
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('resultsContent').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'none';
+}
+
+// Drag & drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImage(f);
+});
+
+// ── ANALYSE ────────────────────────────────────────────────────────────
+async function analyse() {
+  const key = getKey();
+  if (!key || !window.imageBase64) return;
+
+  const dogName = document.getElementById('dogName').value || 'my dog';
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsContent').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'flex';
+  document.getElementById('analyseBtn').disabled = true;
+
+  const prompt = `You are an expert in dog behaviour and body language.
+
+Analyse this photo of ${dogName} and detect their emotional state from visual cues.
+
+Respond in EXACTLY this format with no extra text:
+EMOTION: <one of: Happy / Calm / Anxious / Lonely / Playful / Alert / Tired>
+CONFIDENCE: <one of: Low / Medium / High>
+SIGNALS: <comma separated list of 3-5 visual signals, e.g. "tail held high, relaxed ears, open mouth, loose body posture">
+MESSAGE: <warm, friendly 2-3 sentence message for the owner describing what they're seeing>
+ACTION: <one clear actionable recommendation>`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({
+        model: "claude-opus-4-6",
+        max_tokens: 500,
+        messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: window.imageBase64 } },
+          { type: "text", text: prompt }
+        ]}]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    displayResults(data.content[0].text);
+
+  } catch (err) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('analyseBtn').disabled = false;
+    alert('Error: ' + err.message + '\n\nMake sure your API key is correct.');
+  }
+}
+
+// ── SHARE MODAL ────────────────────────────────────────────────────────
+
+// Store last result for sharing
+window.lastResult = {};
+
+function openShareModal() {
+  const r = window.lastResult;
+  if (!r.emotion) return;
+
+  // Populate preview card
+  document.getElementById('scEmoji').textContent = r.emoji;
+  document.getElementById('scEmotion').textContent = r.emotion;
+  document.getElementById('scDog').textContent = r.dogName + ' · ' + r.confidence + ' Confidence';
+  document.getElementById('scMessage').textContent = r.message;
+
+  const sigWrap = document.getElementById('scSignals');
+  sigWrap.innerHTML = '';
+  r.signals.split(',').forEach(s => {
+    if (s.trim()) {
+      const chip = document.createElement('span');
+      chip.className = 'rc-chip';
+      chip.textContent = s.trim();
+      sigWrap.appendChild(chip);
+    }
+  });
+
+  // Show native share if supported
+  if (navigator.share) {
+    document.getElementById('nativeShareBtn').style.display = 'flex';
+  }
+
+  document.getElementById('shareModal').classList.add('open');
+}
+
+function closeShareModal() {
+  document.getElementById('shareModal').classList.remove('open');
+  document.getElementById('copyFeedback').style.display = 'none';
+}
+
+function handleBackdropClick(e) {
+  if (e.target === document.getElementById('shareModal')) closeShareModal();
+}
+
+async function downloadCard() {
+  const card = document.getElementById('shareCardPreview');
+
+  const canvas = await html2canvas(card, {
+    backgroundColor: '#171410',
+    scale: 2,
+    useCORS: true,
+  });
+
+  const link = document.createElement('a');
+  const r = window.lastResult;
+  link.download = `pawsense-${r.dogName.replace(/\s+/g,'-').toLowerCase()}-${r.emotion.toLowerCase()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function copyText() {
+  const r = window.lastResult;
+  const text =
+`🐾 PawSense Emotion Report — ${r.dogName}
+${'─'.repeat(38)}
+Emotion:    ${r.emoji} ${r.emotion}
+Confidence: ${r.confidence}
+Signals:    ${r.signals}
+
+${r.message}
+
+💡 Recommended Action:
+${r.action}
+
+Powered by PawSense · Claude AI`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById('copyFeedback').style.display = 'block';
+    setTimeout(() => document.getElementById('copyFeedback').style.display = 'none', 2500);
+  });
+}
+
+async function nativeShare() {
+  const r = window.lastResult;
+  const text = `${r.emoji} ${r.dogName} is feeling ${r.emotion}! "${r.message}" — analysed by PawSense`;
+  try {
+    await navigator.share({ title: `PawSense — ${r.dogName} is ${r.emotion}`, text });
+  } catch {}
+}
+
+function displayResults(text) {
+  const lines = {};
+  text.trim().split('\n').forEach(line => {
+    const idx = line.indexOf(':');
+    if (idx > -1) {
+      lines[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
+    }
+  });
+
+  const emotion    = lines['EMOTION']    || 'Unknown';
+  const confidence = lines['CONFIDENCE'] || '—';
+  const signals    = lines['SIGNALS']    || '';
+  const message    = lines['MESSAGE']    || text;
+  const action     = lines['ACTION']     || 'No action needed';
+
+  const emojiMap = { happy:'😄', calm:'😌', anxious:'😰', lonely:'😢', playful:'🎉', alert:'👀', tired:'😴' };
+  const emoji = emojiMap[emotion.toLowerCase()] || '🐾';
+
+  document.getElementById('resEmoji').textContent = emoji;
+  document.getElementById('resEmotion').textContent = emotion;
+  document.getElementById('resConfidence').textContent = confidence + ' Confidence';
+  document.getElementById('resMessage').textContent = message;
+  document.getElementById('resAction').textContent = action;
+
+  const sigWrap = document.getElementById('resSignals');
+  sigWrap.innerHTML = '';
+  signals.split(',').forEach(s => {
+    if (s.trim()) {
+      const chip = document.createElement('span');
+      chip.className = 'signal-chip';
+      chip.textContent = s.trim();
+      sigWrap.appendChild(chip);
+    }
+  });
+
+  const isDistressed = ['anxious','lonely'].includes(emotion.toLowerCase());
+  document.getElementById('alertBanner').style.display = isDistressed ? 'flex' : 'none';
+
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('resultsContent').style.display = 'flex';
+  document.getElementById('analyseBtn').disabled = false;
+
+  // Save for share modal
+  window.lastResult = {
+    emotion, emoji, confidence, signals, message, action,
+    dogName: document.getElementById('dogName').value || 'my dog',
+  };
+
+  // Trigger voice response after 5 second delay
+  scheduleVoicePlayback(emotion.toLowerCase());
+}
+</script>
+</body>
+</html>
